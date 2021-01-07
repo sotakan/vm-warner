@@ -1,22 +1,35 @@
 package main
 
 import (
-	"fmt"
 	"flag"
-	"errors"
+	"fmt"
+	"log"
 	"net/http"
-	"net/url"
+	"strings"
 )
 
 func main() {
 	// Provide Webhook URL via flag
 	webhookFlag := flag.String("slackurl", "", "Slack webhook URL")
+	vmName := flag.String("instance-name", "unnamed-instance", "Name of instance for text body")
+	flag.Parse()
 	webhookURL := *webhookFlag
 
 	if webhookURL == "" {
-		errors.New("No URL for Slack webhook provided. Flag -h to see usage")
+		log.Fatal("No URL for Slack webhook provided. Flag -h to see usage")
 	}
 
 	// POSTing
-	resp, err := http.PostForm(webhookURL, url.Values{"text": {"VM is up!"}})
+	body := strings.NewReader(fmt.Sprintf(`payload={"text": "%v has been left running! Make sure to shutdown your VMs"}`, *vmName))
+	req, err := http.NewRequest("POST", webhookURL, body)
+	if err != nil {
+		log.Fatal("Error with request")
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		log.Fatal("Error POSTing")
+	}
+	defer resp.Body.Close()
 }
